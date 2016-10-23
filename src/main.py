@@ -257,21 +257,21 @@ def main():
 
     U0 = [0, 0]
     G = [
-        [1/4, 0],
+        [Operable(lambda t: t), 0],
         [0, 1/4]
     ]
 
     # set up matrix of the system (i. e. matrix A(t))
     A = [
         [0, 1, 0, 0],
-        [-(K + K1)/M1, -(B + B1)/M1, K/M1, B/M1],
+        [Operable(lambda t: -(K + K1)*t/M1), -(B + B1)/M1, K/M1, B/M1],
         [0, 0, 0, 1],
         [K/M2, B/M2, -(K + K2)/M2, -(B + B2)/M2]
     ]
 
     C = [
         [0, 0],
-        [1/M1, 0],
+        [Operable(lambda t: t/M1), 0],
         [0, 0],
         [0, -1/M2]
     ]
