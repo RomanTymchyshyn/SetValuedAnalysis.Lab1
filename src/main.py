@@ -24,6 +24,7 @@ def find_center(matrix, initial_condition, t_array):
     def system(func, time):
         """Describes system of equations."""
         res = np.dot(matrix, func)
+        res = [Operable(res[i])(time) for i in range(len(res))]
         return res
     sol = odeint(system, initial_condition, t_array)
     return sol
@@ -84,6 +85,7 @@ def find_ellipsoid_matrix(system, right_part, u_matrix,\
         res = np.add(res, q_r)
         res = np.add(res, cgc)
         res = matrix_to_array(res)
+        res = [Operable(res[i])(time) for i in range(len(res))]
         return res
     initial_condition = matrix_to_array(start_set_ellipsoid)
     sol = odeint(diff, initial_condition, t_array)
