@@ -11,67 +11,6 @@ from scipy.integrate import odeint
 
 from operable import Operable
 
-# dimension
-N = 4
-
-# set up model parameters
-# weights
-M1 = 2
-M2 = 3
-
-# friction forces
-B = 4
-B1 = 3
-B2 = 5
-
-# stiffnesses
-K = 2
-K1 = 2
-K2 = 2
-
-# set up start set M0
-A0 = [1, 1, 1, 1]
-QV1 = [1, 0, 0, 0]
-QV2 = [0, 1, 0, 0]
-QV3 = [0, 0, 1, 0]
-QV4 = [0, 0, 0, 1]
-Q0_SEMI_AXES = [1, 2, 3, 4]
-Q0_LAMBDA = [
-    [
-        (0 if j != i else 1/Q0_SEMI_AXES[i]**2) for j in range(N)
-    ]
-    for i in range(N)
-]
-
-Q0_EIGEN_VECTORS_MATRIX = np.transpose([QV1, QV2, QV3, QV4])
-Q0_EIGEN_VECTORS_MATRIX_INV = np.linalg.inv(Q0_EIGEN_VECTORS_MATRIX)
-
-Q0 = np.dot(Q0_EIGEN_VECTORS_MATRIX, Q0_LAMBDA)
-Q0 = np.dot(Q0, Q0_EIGEN_VECTORS_MATRIX_INV)
-
-# set up bounding ellipsoid for u(t)
-
-U0 = [0, 0]
-G = [
-    [1/4, 0],
-    [0, 1/4]
-]
-
-# set up matrix of the system (i. e. matrix A(t))
-A = [
-    [0, 1, 0, 0],
-    [-(K + K1)/M1, -(B + B1)/M1, K/M1, B/M1],
-    [0, 0, 0, 1],
-    [K/M2, B/M2, -(K + K2)/M2, -(B + B2)/M2]
-]
-
-C = [
-    [0, 0],
-    [1/M1, 0],
-    [0, 0],
-    [0, -1/M2]
-]
-
 def find_center(matrix, initial_condition, t_array):
     """Returns center of approximation ellipsoid for reachable set.
 
@@ -191,49 +130,156 @@ def project_ellipsoid_to_subspace(center, shape_matrix, initial_dimension, proje
     return new_center, new_shape_matrix
 
 
-def get_ellipse_points(center, shape):
-    theta = np.linspace(0, 2*math.pi, T_COUNT)
-    e_vals, e_vecs = np.linalg.eig(shape)
+def get_ellipse_points(center, shape_matrix, number_of_points):
+    """Return two one-dimensional arrays that represent points on ellipse.
 
-    a = 1/math.sqrt(e_vals[0])
-    b = 1/math.sqrt(e_vals[1])
+    Ellipse described by center and shape matrix ("shape" parameter)"""
+    theta = np.linspace(0, 2*math.pi, number_of_points)
+    e_vals, e_vecs = np.linalg.eig(shape_matrix)
+
+    ax1 = 1/math.sqrt(e_vals[0])
+    ax2 = 1/math.sqrt(e_vals[1])
 
     angle = math.acos(e_vecs[0][0])/math.sqrt(e_vecs[0][0]**2 + e_vecs[1][0]**2)
 
     if angle < 0:
         angle += 2*math.pi
 
-    x = []
-    y = []
+    x_coordinates = []
+    y_coordinates = []
     for t in theta:
-        x.append(a * np.cos(t) * np.cos(angle) - b * np.sin(t) * np.sin(angle) + center[0])
-        y.append(a * np.cos(t) * np.sin(angle) + b * np.sin(t) * np.cos(angle) + center[1])
+        x_coordinates.append(
+            ax1 * np.cos(t) * np.cos(angle) - ax2 * np.sin(t) * np.sin(angle) + center[0])
+        y_coordinates.append(
+            ax1 * np.cos(t) * np.sin(angle) + ax2 * np.sin(t) * np.cos(angle) + center[1])
 
-    return x, y
+    return x_coordinates, y_coordinates
 
 
-T_START = 0 # T_START - start of time
-T_END = 10  # T_END - end of time
-T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
-T = np.linspace(T_START, T_END, T_COUNT)
-CENTER = find_center(A, A0, T)
-SHAPE_MATRIX = find_ellipsoid_matrix(A, C, G, Q0, T)
+def plot_result(t_array, center_array, shape_matrix_array, coordinates):
+    """Plot of result.
 
-xx = []
-yy = []
-for t in range(len(T)):
-    xx.append([])
-    yy.append([])
-    center, shape_matrix = project_ellipsoid_to_subspace(CENTER[t], 
-        SHAPE_MATRIX[t], len(CENTER[t]), [2, 3])
-    xx[t], yy[t] = get_ellipse_points(center, shape_matrix)
+    t_array - array of timestamps
+    center_array - array containing centers of ellispoids
+        for each timestamp
+    shape_matrix_array - array containing shape matrices
+        of ellipsoids for each timestamp
+    coordinates - array that contains two numbers - numbers of coordinates
+        in which result will be plotted.
+    For e. g. if coordinates=[0, 1] and dimension = 3, than projection
+    onto xy plane will be computed
+    """
 
-fig = plt.figure()
-axes = Axes3D(fig)
-axes.set_xlabel('T')
-axes.set_ylabel('Y1')
-axes.set_zlabel('Y2')
-for i in range(T_COUNT):
-    axes.plot([T[i] for _ in range(T_COUNT)], xx[i], yy[i])
+    t_len = len(t_array)
+    initial_dimension = np.shape(center_array)[1]
 
-plt.show()
+    x_array = []
+    y_array = []
+    for t in range(t_len):
+        x_array.append([])
+        y_array.append([])
+        center, shape_matrix = project_ellipsoid_to_subspace(center_array[t],\
+            shape_matrix_array[t], initial_dimension, coordinates)
+        x_array[t], y_array[t] = get_ellipse_points(center, shape_matrix, t_len)
+
+    fig = plt.figure()
+    axes = Axes3D(fig)
+    axes.set_xlabel('T')
+    axes.set_ylabel('Y1')
+    axes.set_zlabel('Y2')
+    for i in range(t_len):
+        axes.plot([t_array[i] for _ in range(t_len)], x_array[i], y_array[i])
+
+    plt.show()
+
+
+def solve(system, center_of_start_set, start_set_shape_matrix,\
+        right_part, u_shape_matrix, t_start, t_end, t_count):
+    """Solve approximation problem.
+
+    Assume n - dimension of the problem.
+
+    Returns
+    t_array - array of timestamps of length t_count
+    center - array of shape (t_count, n)
+    shape_matrix - array of shpe(t_count, n, n)"""
+    t_array = np.linspace(t_start, t_end, t_count)
+    center = find_center(system, center_of_start_set, t_array)
+    shape_matrix =\
+        find_ellipsoid_matrix(system, right_part, u_shape_matrix, start_set_shape_matrix, t_array)
+
+    return t_array, center, shape_matrix
+
+
+def main():
+    """Entry point for the app."""
+    # dimension
+    N = 4
+
+    # set up model parameters
+    # weights
+    M1 = 2
+    M2 = 3
+
+    # friction forces
+    B = 4
+    B1 = 3
+    B2 = 5
+
+    # stiffnesses
+    K = 2
+    K1 = 2
+    K2 = 2
+
+    # set up start set M0
+    A0 = [1, 1, 1, 1]
+    QV1 = [1, 0, 0, 0]
+    QV2 = [0, 1, 0, 0]
+    QV3 = [0, 0, 1, 0]
+    QV4 = [0, 0, 0, 1]
+    Q0_SEMI_AXES = [1, 2, 3, 4]
+    Q0_LAMBDA = [
+        [
+            (0 if j != i else 1/Q0_SEMI_AXES[i]**2) for j in range(N)
+        ]
+        for i in range(N)
+    ]
+
+    Q0_EIGEN_VECTORS_MATRIX = np.transpose([QV1, QV2, QV3, QV4])
+    Q0_EIGEN_VECTORS_MATRIX_INV = np.linalg.inv(Q0_EIGEN_VECTORS_MATRIX)
+
+    Q0 = np.dot(Q0_EIGEN_VECTORS_MATRIX, Q0_LAMBDA)
+    Q0 = np.dot(Q0, Q0_EIGEN_VECTORS_MATRIX_INV)
+
+    # set up bounding ellipsoid for u(t)
+
+    U0 = [0, 0]
+    G = [
+        [1/4, 0],
+        [0, 1/4]
+    ]
+
+    # set up matrix of the system (i. e. matrix A(t))
+    A = [
+        [0, 1, 0, 0],
+        [-(K + K1)/M1, -(B + B1)/M1, K/M1, B/M1],
+        [0, 0, 0, 1],
+        [K/M2, B/M2, -(K + K2)/M2, -(B + B2)/M2]
+    ]
+
+    C = [
+        [0, 0],
+        [1/M1, 0],
+        [0, 0],
+        [0, -1/M2]
+    ]
+
+    T_START = 0 # T_START - start of time
+    T_END = 10  # T_END - end of time
+    T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
+
+    t_array, center, shape_matrix = solve(A, A0, Q0, C, G, T_START, T_END, T_COUNT)
+    plot_result(t_array, center, shape_matrix, [0, 1])
+
+
+main()
