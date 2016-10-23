@@ -3,8 +3,10 @@
 Approximation of reachable set.
 """
 
+import math
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D  # for drawing
 from scipy.integrate import odeint
 
 from operable import Operable
@@ -189,19 +191,49 @@ def project_ellipsoid_to_subspace(center, shape_matrix, initial_dimension, proje
     return new_center, new_shape_matrix
 
 
+def get_ellipse_points(center, shape):
+    theta = np.linspace(0, 2*math.pi, T_COUNT)
+    e_vals, e_vecs = np.linalg.eig(shape)
+
+    a = 1/math.sqrt(e_vals[0])
+    b = 1/math.sqrt(e_vals[1])
+
+    angle = math.acos(e_vecs[0][0])/math.sqrt(e_vecs[0][0]**2 + e_vecs[1][0]**2)
+
+    if angle < 0:
+        angle += 2*math.pi
+
+    x = []
+    y = []
+    for t in theta:
+        x.append(a * np.cos(t) * np.cos(angle) - b * np.sin(t) * np.sin(angle) + center[0])
+        y.append(a * np.cos(t) * np.sin(angle) + b * np.sin(t) * np.cos(angle) + center[1])
+
+    return x, y
+
 
 T_START = 0 # T_START - start of time
 T_END = 10  # T_END - end of time
-T_COUNT = 1000  # T_COUNT - number of timestamps on [t_start, t_end]
+T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
 T = np.linspace(T_START, T_END, T_COUNT)
 CENTER = find_center(A, A0, T)
 SHAPE_MATRIX = find_ellipsoid_matrix(A, C, G, Q0, T)
 
-projection = project_ellipsoid_to_subspace(CENTER[500], SHAPE_MATRIX[500], len(SHAPE_MATRIX[0]), [0, 1])
+xx = []
+yy = []
+for t in range(len(T)):
+    xx.append([])
+    yy.append([])
+    center, shape_matrix = project_ellipsoid_to_subspace(CENTER[t], 
+        SHAPE_MATRIX[t], len(CENTER[t]), [2, 3])
+    xx[t], yy[t] = get_ellipse_points(center, shape_matrix)
 
-plt.plot(T, CENTER[:, 0], 'b', label='y1(t)')
-plt.plot(T, CENTER[:, 1], 'g', label='y2(t)')
-plt.legend(loc='best')
-plt.xlabel('t')
-plt.grid()
+fig = plt.figure()
+axes = Axes3D(fig)
+axes.set_xlabel('T')
+axes.set_ylabel('Y1')
+axes.set_zlabel('Y2')
+for i in range(T_COUNT):
+    axes.plot([T[i] for _ in range(T_COUNT)], xx[i], yy[i])
+
 plt.show()
