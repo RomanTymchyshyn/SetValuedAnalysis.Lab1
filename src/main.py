@@ -274,8 +274,8 @@ def main():
 
     U0 = [0, 0]
     G = [
-        [Operable(lambda t: t), 0],
-        [0, 1/4]
+        [Operable(lambda t: t**2+t*16), Operable(lambda t: t**2+t*8)],
+        [Operable(lambda t: t**2+t*8), Operable(lambda t: 4*t**2 + t)]
     ]
 
     # set up matrix of the system (i. e. matrix A(t))
@@ -298,7 +298,7 @@ def main():
     T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
 
     t_array, center, shape_matrix = solve(A, A0, Q0, C, G, T_START, T_END, T_COUNT)
-    plot_result(t_array, center, shape_matrix, [0, 1])
+    plot_result(t_array, center, shape_matrix, [0, 2])
 
 
 main()
