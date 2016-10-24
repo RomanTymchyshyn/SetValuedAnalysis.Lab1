@@ -5,8 +5,8 @@ Approximation of reachable set.
 
 import math
 import matplotlib.pyplot as plt
-import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # for drawing
+import numpy as np
 from scipy.integrate import odeint
 
 from operable import Operable
@@ -57,6 +57,18 @@ def solution_to_matrix_form(solution, rows, cols, timestamps_count):
     """
     return np.reshape(solution, (timestamps_count, rows, cols))
 
+def get_parameter_q_function(dimension, matrix, cgc):
+    def result(time):
+        R = np.linalg.inv(matrix)
+
+        CGC = [[cgc[i][j](time) for j in range(dimension)] for i in range(dimension)]
+        
+        R = np.dot(R, CGC)
+        res = np.trace(R)/dimension
+        return math.sqrt(res)
+    return result
+
+
 def find_ellipsoid_matrix(system, right_part, u_matrix,\
     start_set_ellipsoid, t_array):
     """Returns shape matrix of approximation ellipsoid for reachable set.
@@ -70,20 +82,25 @@ def find_ellipsoid_matrix(system, right_part, u_matrix,\
         which describes initial set.
     t_array - discrete representation of time interval
     """
-    parameter_q = 1
     cgc = np.dot(right_part, u_matrix)
     cgc = np.dot(cgc, np.transpose(right_part))
-    cgc = np.dot(1/parameter_q, cgc)
     rows, cols = np.shape(system)
     def diff(func, time):
         """Describes system of equations."""
         matrix_representation = array_to_matrix(func, rows, cols)
         a_r = np.dot(system, matrix_representation)
         r_a = np.dot(matrix_representation, np.transpose(system))
+
+        parameter_q = get_parameter_q_function(rows, matrix_representation, cgc)(time)
+        parameter_q = 1 if parameter_q < 0.00001 else parameter_q
+        # parameter_q = 1
+
         q_r = np.dot(parameter_q, matrix_representation)
         res = np.add(a_r, r_a)
         res = np.add(res, q_r)
-        res = np.add(res, cgc)
+
+        tmp = np.dot(1/parameter_q, cgc)
+        res = np.add(res, tmp)
         res = matrix_to_array(res)
         res = [Operable(res[i])(time) for i in range(len(res))]
         return res
@@ -264,14 +281,14 @@ def main():
     # set up matrix of the system (i. e. matrix A(t))
     A = [
         [0, 1, 0, 0],
-        [Operable(lambda t: -(K + K1)*t/M1), -(B + B1)/M1, K/M1, B/M1],
+        [-(K + K1)/M1, -(B + B1)/M1, K/M1, B/M1],
         [0, 0, 0, 1],
         [K/M2, B/M2, -(K + K2)/M2, -(B + B2)/M2]
     ]
 
     C = [
         [0, 0],
-        [Operable(lambda t: t/M1), 0],
+        [1/M1, 0],
         [0, 0],
         [0, -1/M2]
     ]
