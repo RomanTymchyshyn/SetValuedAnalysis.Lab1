@@ -61,8 +61,7 @@ def get_parameter_q_function(dimension, matrix, cgc):
     def result(time):
         R = np.linalg.inv(matrix)
 
-        CGC = [[cgc[i][j](time) for j in range(dimension)] for i in range(dimension)]
-        
+        CGC = [[Operable(cgc[i][j])(time) for j in range(dimension)] for i in range(dimension)]
         R = np.dot(R, CGC)
         res = np.trace(R)/dimension
         return math.sqrt(res)
