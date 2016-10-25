@@ -10,6 +10,7 @@ import numpy as np
 from scipy.integrate import odeint
 
 from operable import Operable
+from utils import project_ellipsoid_to_subspace
 
 def find_center(matrix, initial_condition, t_array):
     """Returns center of approximation ellipsoid for reachable set.
@@ -62,6 +63,7 @@ def get_parameter_q_function(dimension, matrix, cgc):
         R = np.linalg.inv(matrix)
 
         CGC = [[Operable(cgc[i][j])(time) for j in range(dimension)] for i in range(dimension)]
+
         R = np.dot(R, CGC)
         res = np.trace(R)/dimension
         return math.sqrt(res)
@@ -107,45 +109,6 @@ def find_ellipsoid_matrix(system, right_part, u_matrix,\
     sol = odeint(diff, initial_condition, t_array)
     shape_matrix = solution_to_matrix_form(sol, rows, cols, np.shape(t_array)[0])
     return shape_matrix
-
-def project_ellipsoid_to_subspace(center, shape_matrix, initial_dimension, projection_coordinates):
-    """Projects n-dimesnaional ellipsoid into 2d plane.
-
-    shape_matrix - shape matrix of ellipsoid
-    initial_dimension - dimension of ellipsoid
-    projection_coordinates - numbers of coordinates that will form projection subspace.
-    For e. g. if projection_coordinates=[0, 1] and dimension = 3, than projection
-    onto xy plane will be computed"""
-    # basis of subspace, ellipsoid is being projected
-    projection_coordinates.sort()
-    kernel_coordinates = list(set(range(initial_dimension)) - set(projection_coordinates))
-    projection_dimension = len(projection_coordinates)
-    kernel_dimension = len(kernel_coordinates)
-    pr_basis = [
-        [1 if i == projection_coordinates[j] else 0 for j in range(projection_dimension)]
-        for i in range(initial_dimension)
-    ]
-    kernel_basis = [
-        [1 if i == kernel_coordinates[j] else 0 for j in range(kernel_dimension)]
-        for i in range(initial_dimension)
-    ]
-
-    new_center = np.dot(np.transpose(pr_basis), center)
-
-    # find new shape matrix
-    basis_dot_shape = np.dot(np.transpose(pr_basis), shape_matrix)
-    kernel_dot_shape = np.dot(np.transpose(kernel_basis), shape_matrix)
-    e11 = np.dot(basis_dot_shape, pr_basis)
-    # Yt * E * Z = (Zt * E * Y)t for symmetric E
-    e12 = np.dot(basis_dot_shape, kernel_basis)
-    e22 = np.dot(kernel_dot_shape, kernel_basis)
-    e22 = np.linalg.inv(e22)
-    temp = np.dot(e12, e22)
-    temp = np.dot(temp, np.transpose(e12))
-
-    new_shape_matrix = np.subtract(e11, temp)
-
-    return new_center, new_shape_matrix
 
 
 def get_ellipse_points(center, shape_matrix, number_of_points):
@@ -273,8 +236,8 @@ def main():
 
     U0 = [0, 0]
     G = [
-        [Operable(lambda t: t**2+t*16), Operable(lambda t: t**2+t*8)],
-        [Operable(lambda t: t**2+t*8), Operable(lambda t: 4*t**2 + t)]
+        [1/4, 0],
+        [0, 1/4]
     ]
 
     # set up matrix of the system (i. e. matrix A(t))
@@ -297,7 +260,7 @@ def main():
     T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
 
     t_array, center, shape_matrix = solve(A, A0, Q0, C, G, T_START, T_END, T_COUNT)
-    plot_result(t_array, center, shape_matrix, [0, 2])
+    plot_result(t_array, center, shape_matrix, [0, 1])
 
 
 main()
