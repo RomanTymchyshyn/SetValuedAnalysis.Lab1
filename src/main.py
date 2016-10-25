@@ -59,13 +59,22 @@ def solution_to_matrix_form(solution, rows, cols, timestamps_count):
     return np.reshape(solution, (timestamps_count, rows, cols))
 
 def get_parameter_q_function(dimension, matrix, cgc):
+    """Returns optimal parameter function for algorithm.
+
+    Consider equation x(t) = A(t)x(t) + C(t)u(t)
+    dimension - dimension of problem
+    matrix - matrix function - shape of sought ellipsoid
+    cgc - product of matrices C, G, transposed C,
+        where G - shape matrix of bounding ellispoid for u(t)."""
     def result(time):
-        R = np.linalg.inv(matrix)
+        """Optimal parameter function."""
+        inv = np.linalg.inv(matrix)
 
-        CGC = [[Operable(cgc[i][j])(time) for j in range(dimension)] for i in range(dimension)]
+        # calculate cgc product in given time point
+        product = [[Operable(cgc[i][j])(time) for j in range(dimension)] for i in range(dimension)]
 
-        R = np.dot(R, CGC)
-        res = np.trace(R)/dimension
+        inv = np.dot(inv, product)
+        res = np.trace(inv)/dimension
         return math.sqrt(res)
     return result
 
@@ -83,11 +92,15 @@ def find_ellipsoid_matrix(system, right_part, u_matrix,\
         which describes initial set.
     t_array - discrete representation of time interval
     """
+    # calculate C*G*C^t, where C^t - transposed C
+    # and G - u_matrix (i. e. shape matrix for boundary ellipsoid for u)
     cgc = np.dot(right_part, u_matrix)
     cgc = np.dot(cgc, np.transpose(right_part))
     rows, cols = np.shape(system)
     def diff(func, time):
-        """Describes system of equations."""
+        """Describes system of equations.
+
+        Returns array of values - value of of system in given time point."""
         matrix_representation = array_to_matrix(func, rows, cols)
         a_r = np.dot(system, matrix_representation)
         r_a = np.dot(matrix_representation, np.transpose(system))
@@ -109,6 +122,24 @@ def find_ellipsoid_matrix(system, right_part, u_matrix,\
     sol = odeint(diff, initial_condition, t_array)
     shape_matrix = solution_to_matrix_form(sol, rows, cols, np.shape(t_array)[0])
     return shape_matrix
+
+
+def solve(system, center_of_start_set, start_set_shape_matrix,\
+        right_part, u_shape_matrix, t_start, t_end, t_count):
+    """Solve approximation problem.
+
+    Assume n - dimension of the problem.
+
+    Returns
+    t_array - array of timestamps of length t_count
+    center - array of shape (t_count, n)
+    shape_matrix - array of shpe(t_count, n, n)"""
+    t_array = np.linspace(t_start, t_end, t_count)
+    center = find_center(system, center_of_start_set, t_array)
+    shape_matrix =\
+        find_ellipsoid_matrix(system, right_part, u_shape_matrix, start_set_shape_matrix, t_array)
+
+    return t_array, center, shape_matrix
 
 
 def get_ellipse_points(center, shape_matrix, number_of_points):
@@ -172,24 +203,6 @@ def plot_result(t_array, center_array, shape_matrix_array, coordinates):
         axes.plot([t_array[i] for _ in range(t_len)], x_array[i], y_array[i])
 
     plt.show()
-
-
-def solve(system, center_of_start_set, start_set_shape_matrix,\
-        right_part, u_shape_matrix, t_start, t_end, t_count):
-    """Solve approximation problem.
-
-    Assume n - dimension of the problem.
-
-    Returns
-    t_array - array of timestamps of length t_count
-    center - array of shape (t_count, n)
-    shape_matrix - array of shpe(t_count, n, n)"""
-    t_array = np.linspace(t_start, t_end, t_count)
-    center = find_center(system, center_of_start_set, t_array)
-    shape_matrix =\
-        find_ellipsoid_matrix(system, right_part, u_shape_matrix, start_set_shape_matrix, t_array)
-
-    return t_array, center, shape_matrix
 
 
 def main():
