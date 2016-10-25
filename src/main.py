@@ -1,12 +1,19 @@
 """Lab 1.
 
 Approximation of reachable set.
+Considered model is x'(t) = A(t)*x(t) + C(t)u(t).
+t belongs to [t0, t1]
+x(t0) belongs to start set M0, which is ellipsoid
+u(t) - control function, which belongs to U(t)
+    which is also ellipsoid for any non-negative t
 """
 
 import numpy as np
 
 from approximation import solve
-from plot_utils import plot_result
+from operable import Operable
+from plot_utils import plot_approximation_result
+
 
 def main():
 # pylint: disable=C0103
@@ -51,8 +58,8 @@ def main():
 
     # set up shape matrix for bounding ellipsoid for u(t)
     G = [
-        [1/4, 0],
-        [0, 1/4]
+        [Operable(lambda t: t**2+t*16), Operable(lambda t: t**2+t*8)],
+        [Operable(lambda t: t**2+t*8), Operable(lambda t: 4*t**2 + t)]
     ]
 
     # set up matrix of the system (i. e. matrix A(t))
@@ -75,7 +82,7 @@ def main():
     T_COUNT = 50  # T_COUNT - number of timestamps on [t_start, t_end]
 
     t_array, center, shape_matrix = solve(A, A0, Q0, C, G, T_START, T_END, T_COUNT)
-    plot_result(t_array, center, shape_matrix, [0, 1])
+    plot_approximation_result(t_array, center, shape_matrix, [0, 1], 'T', 'Y1', 'Y2')
 
 
 main()

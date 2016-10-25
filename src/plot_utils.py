@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from utils import project_ellipsoid_to_subspace
 
 
-def get_ellipse_points(center, shape_matrix, number_of_points):
+def _get_ellipse_points(center, shape_matrix, number_of_points):
     """Return two one-dimensional arrays that represent points on ellipse.
 
     Ellipse described by center and shape matrix.
@@ -36,12 +36,15 @@ def get_ellipse_points(center, shape_matrix, number_of_points):
     return x_coordinates, y_coordinates
 
 
-# def _plot_2d_ellipse_in_3d_space(center, shape, time_point):
-#     """Plot ellipse given by center and shape matrix in some time point."""
+def plot_2d_ellipse_in_3d_space(axes_3d, center, shape, time_point):
+    """Plot ellipse given by center and shape matrix in some time point."""
+    number_of_points = 25
+    x_array, y_array = _get_ellipse_points(center, shape, number_of_points)
+    t_array = [time_point for _ in range(number_of_points)]
+    axes_3d.plot(t_array, x_array, y_array)
 
 
-
-def plot_result(t_array, center_array, shape_matrix_array, coordinates):
+def plot_approximation_result(t_array, center_array, shape_matrix_array, coordinates, x_label, y_label, z_label):
     """Plot of result.
 
     t_array - array of timestamps
@@ -58,21 +61,15 @@ def plot_result(t_array, center_array, shape_matrix_array, coordinates):
     t_len = len(t_array)
     initial_dimension = np.shape(center_array)[1]
 
-    x_array = []
-    y_array = []
-    for t in range(t_len):
-        x_array.append([])
-        y_array.append([])
-        center, shape_matrix = project_ellipsoid_to_subspace(center_array[t],\
-            shape_matrix_array[t], initial_dimension, coordinates)
-        x_array[t], y_array[t] = get_ellipse_points(center, shape_matrix, t_len)
-
     fig = plt.figure()
     axes = Axes3D(fig)
-    axes.set_xlabel('T')
-    axes.set_ylabel('Y1')
-    axes.set_zlabel('Y2')
-    for i in range(t_len):
-        axes.plot([t_array[i] for _ in range(t_len)], x_array[i], y_array[i])
+    axes.set_xlabel(x_label)
+    axes.set_ylabel(y_label)
+    axes.set_zlabel(z_label)
+
+    for t in range(t_len):
+        center, shape_matrix = project_ellipsoid_to_subspace(center_array[t],\
+            shape_matrix_array[t], initial_dimension, coordinates)
+        plot_2d_ellipse_in_3d_space(axes, center, shape_matrix, t_array[t])
 
     plt.show()
